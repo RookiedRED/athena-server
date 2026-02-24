@@ -4,10 +4,14 @@ const cors      = require('cors')
 const rateLimit = require('express-rate-limit')
 const config    = require('../config')
 
+const logger       = require('./middleware/logger')
 const authRouter   = require('./routes/auth')
 const intentRouter = require('./routes/intent')
 
 const app = express()
+
+// 請求監聽
+app.use(logger)
 
 // 安全設定
 app.use(helmet())
