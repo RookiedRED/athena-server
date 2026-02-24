@@ -11,11 +11,11 @@ const summarizeAll = async (articles) => {
   const messages = [
     {
       role: 'system',
-      content: 'You are a news summarizer. Read the headlines and output ONLY a JSON array. No explanation. Format: [{"index":1,"point":"繁體中文重點，不超過25字"},...]',
+      content: 'You are a news summarizer. Read the following headlines and summarize each one in Traditional Chinese (繁體中文), maximum 25 characters per summary. Output ONLY a valid JSON array, nothing else. Example output: [{"index":1,"point":"蘋果發布新款 iPhone 17 系列"},{"index":2,"point":"台積電宣布擴大美國投資計畫"}]',
     },
     {
       role: 'user',
-      content: articlesText,
+      content: `Summarize these headlines:\n${articlesText}`,
     },
   ]
 

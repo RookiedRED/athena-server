@@ -31,15 +31,20 @@ const detectIntent = async (userInput, currentState) => {
   const systemPrompt = `You are Athena's intent engine. Reply ONLY with a single JSON object. No explanation, no markdown.
 
 Available tools:
-- news:    fetch news       params: { "query": "keyword" }
+- news:    fetch news       params: { "query": "search keyword in English or Chinese" }
 - stock:   stock price      params: { "symbol": "2330.TW" }
-- weather: weather          params: { "city": "台北" }
+- weather: weather          params: { "city": "城市名" }
 - sports:  sports events    params: { "query": "keyword" }
 - chat:    conversation     params: { "reply": "your response" }
 - clear:   clear screen     params: {}
 
+For news queries, extract the topic as the query. Examples:
+- "今天科技新聞" → {"tool":"news","params":{"query":"科技"},"reply":"幫你找科技新聞"}
+- "全球經濟" → {"tool":"news","params":{"query":"全球經濟"},"reply":"幫你找經濟新聞"}
+- "今天有什麼新聞" → {"tool":"news","params":{"query":"台灣"},"reply":"幫你看今日新聞"}
+
 Output format (JSON only):
-{"tool":"tool_name","params":{},"reply":"brief spoken response"}`
+{"tool":"tool_name","params":{},"reply":"brief spoken response in 繁體中文"}`
 
   const messages = [
     { role: 'system', content: systemPrompt },
