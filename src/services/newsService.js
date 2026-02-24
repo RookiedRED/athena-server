@@ -2,25 +2,16 @@ const axios      = require('axios')
 const config     = require('../../config')
 const llmService = require('./llmService')
 
-// 把 10 篇新聞整合成一份結構化摘要
+// 把新聞整合成一份結構化摘要
 const summarizeAll = async (articles) => {
-  const articlesText = articles.map((a, i) =>
-    `[${i + 1}] ${a.title}${a.description ? '\n' + a.description : ''}`
-  ).join('\n\n')
+  // 只取前 6 篇，只用標題（不含 description），減少 token 數
+  const top = articles.slice(0, 6)
+  const articlesText = top.map((a, i) => `[${i + 1}] ${a.title}`).join('\n')
 
   const messages = [
     {
       role: 'system',
-      content: `你是新聞摘要助手。
-閱讀以下新聞後，用繁體中文整理出 5～6 個最重要的重點。
-每個重點對應一篇新聞，格式如下（只輸出 JSON，不要其他文字）：
-
-[
-  { "index": 1, "point": "重點一句話（不超過 30 字）" },
-  { "index": 2, "point": "重點一句話（不超過 30 字）" }
-]
-
-index 是對應的新聞編號，point 是該篇的核心重點。`,
+      content: 'You are a news summarizer. Read the headlines and output ONLY a JSON array. No explanation. Format: [{"index":1,"point":"繁體中文重點，不超過25字"},...]',
     },
     {
       role: 'user',
@@ -29,17 +20,20 @@ index 是對應的新聞編號，point 是該篇的核心重點。`,
   ]
 
   try {
-    const raw   = await llmService.chat(messages, { temperature: 0.2, maxTokens: 400 })
+    // timeout 縮短到 30 秒，避免拖太久
+    const raw = await llmService.chat(messages, { temperature: 0.1, maxTokens: 300, timeout: 30000 })
+    console.log('[News] LLM 摘要原始輸出:', raw.slice(0, 200))
     const clean = raw.replace(/```json|```/g, '').trim()
     const start = clean.indexOf('[')
     const end   = clean.lastIndexOf(']')
+    if (start === -1 || end === -1) throw new Error('No JSON array found')
     return JSON.parse(clean.slice(start, end + 1))
   } catch (err) {
     console.error('[News] 摘要解析失敗:', err.message)
     // fallback：直接用標題
-    return articles.slice(0, 6).map((a, i) => ({
+    return top.map((a, i) => ({
       index: i + 1,
-      point: a.title.slice(0, 40),
+      point: a.title.slice(0, 30),
     }))
   }
 }

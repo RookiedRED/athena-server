@@ -19,6 +19,9 @@ const chat = async (messages, options = {}) => {
       temperature: options.temperature ?? 0.7,
       num_predict: options.maxTokens   ?? 512,
     },
+  }, {
+    // 允許每個 call 自訂 timeout
+    timeout: options.timeout ?? 120000,
   })
   return response.data.message.content
 }
