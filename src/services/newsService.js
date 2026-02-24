@@ -2,6 +2,26 @@ const axios      = require('axios')
 const config     = require('../../config')
 const llmService = require('./llmService')
 
+// 把任何格式的 LLM 輸出 normalize 成 [{index, point}]
+const normalizePoints = (parsed, articles) => {
+  return parsed
+    .slice(0, articles.length)  // 不超過文章數
+    .map((item, i) => {
+      // 已經是正確格式 {index, point}
+      if (item && typeof item === 'object' && typeof item.point === 'string') {
+        return { index: item.index ?? i + 1, point: item.point.slice(0, 40) }
+      }
+      // 純字串陣列
+      if (typeof item === 'string') {
+        return { index: i + 1, point: item.slice(0, 40) }
+      }
+      // 其他奇怪格式：嘗試取任何字串值
+      const text = Object.values(item).find(v => typeof v === 'string') || articles[i]?.title || ''
+      return { index: i + 1, point: text.slice(0, 40) }
+    })
+    .filter(p => p.point.length > 0)
+}
+
 // 把新聞整合成一份結構化摘要
 const summarizeAll = async (articles) => {
   // 只取前 6 篇，只用標題（不含 description），減少 token 數
