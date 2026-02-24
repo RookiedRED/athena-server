@@ -8,13 +8,16 @@ const ollamaClient = axios.create({
 
 // 一般對話
 const chat = async (messages, options = {}) => {
+  const model = options.model || config.ollama.model
+  console.log(`[LLM] 使用模型: ${model}`)
+
   const response = await ollamaClient.post('/api/chat', {
-    model: options.model || config.ollama.model,
+    model,
     messages,
     stream: false,
     options: {
-      temperature: options.temperature || 0.7,
-      num_predict: options.maxTokens   || 1024,
+      temperature: options.temperature ?? 0.7,
+      num_predict: options.maxTokens   ?? 512,
     },
   })
   return response.data.message.content
@@ -22,39 +25,38 @@ const chat = async (messages, options = {}) => {
 
 // 意圖識別（強制輸出 JSON）
 const detectIntent = async (userInput, currentState) => {
-  const systemPrompt = `你是 Athena 的意圖識別引擎，只能回傳 JSON，不能說任何其他話。
+  const systemPrompt = `You are Athena's intent engine. Reply ONLY with a single JSON object. No explanation, no markdown.
 
-可用的 Tool：
-- news:    查詢新聞    params: { "query": "關鍵字" }
-- stock:   股票走勢    params: { "symbol": "2330.TW" }
-- weather: 天氣       params: { "city": "台北" }
-- sports:  球賽       params: { "query": "關鍵字" }
-- chat:    一般對話    params: { "reply": "回應內容" }
-- clear:   清空畫面    params: {}
+Available tools:
+- news:    fetch news       params: { "query": "keyword" }
+- stock:   stock price      params: { "symbol": "2330.TW" }
+- weather: weather          params: { "city": "台北" }
+- sports:  sports events    params: { "query": "keyword" }
+- chat:    conversation     params: { "reply": "your response" }
+- clear:   clear screen     params: {}
 
-回傳格式：
-{ "tool": "tool名稱", "params": {}, "reply": "簡短口頭回應（選填）" }
-
-只回傳 JSON，不要任何其他文字。`
+Output format (JSON only):
+{"tool":"tool_name","params":{},"reply":"brief spoken response"}`
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    {
-      role: 'user',
-      content: `當前畫面狀態：${JSON.stringify(currentState)}\n使用者說：「${userInput}」`,
-    },
+    { role: 'user',   content: `User said: "${userInput}"` },
   ]
 
-  const raw = await chat(messages, { temperature: 0.2, maxTokens: 256 })
-
+  let raw = ''
   try {
+    raw = await chat(messages, { temperature: 0.1, maxTokens: 128 })
+    console.log(`[LLM] 原始輸出: ${raw}`)
+
+    // 清理後解析
     const clean = raw.replace(/```json|```/g, '').trim()
     const start = clean.indexOf('{')
     const end   = clean.lastIndexOf('}')
+    if (start === -1 || end === -1) throw new Error('No JSON found')
     return JSON.parse(clean.slice(start, end + 1))
-  } catch {
-    // 解析失敗 fallback 成普通對話
-    return { tool: 'chat', params: { reply: raw }, reply: raw }
+  } catch (err) {
+    console.error(`[LLM] 解析失敗: ${err.message}, raw: ${raw}`)
+    return { tool: 'chat', params: { reply: raw || '我不太理解，可以換個說法嗎？' }, reply: raw }
   }
 }
 
@@ -75,10 +77,10 @@ const chatStream = async (messages, onChunk, options = {}) => {
           const data  = JSON.parse(line)
           const token = data.message?.content || ''
           fullText   += token
-          onChunk(token)
+          if (token) onChunk(token)
           if (data.done) resolve(fullText)
         }
-      } catch { /* 忽略不完整的 chunk */ }
+      } catch { /* 忽略不完整 chunk */ }
     })
     response.data.on('error', reject)
   })

@@ -2,6 +2,7 @@ const express     = require('express')
 const { authenticateToken } = require('../middleware/auth')
 const llmService  = require('../services/llmService')
 const newsService = require('../services/newsService')
+const stockService = require('../services/stockService')
 
 const router = express.Router()
 
@@ -28,10 +29,11 @@ router.post('/', authenticateToken, async (req, res) => {
         data = await newsService.fetch(query)
         break
       }
-      case 'stock':
-        // Stock 讓手機直接查 Yahoo Finance（不需要 Key）
-        // 這裡只回傳 intent，手機自己處理
+      case 'stock': {
+        const symbol = intent.params?.symbol || '2330.TW'
+        data = await stockService.fetch(symbol)
         break
+      }
       case 'weather':
       case 'sports':
       case 'chat':

@@ -1,32 +1,45 @@
 const axios  = require('axios')
 const config = require('../../config')
 
-const newsClient = axios.create({
-  baseURL: 'https://newsapi.org/v2',
-  timeout: 10000,
-  headers: { 'X-Api-Key': config.apiKeys.news },
-})
-
 const fetch = async (query) => {
+  if (!config.apiKeys.news) {
+    console.error('[News] NEWS_API_KEY 未設定')
+    return []
+  }
+
   try {
-    const { data } = await newsClient.get('/everything', {
-      params: { q: query, language: 'zh', sortBy: 'publishedAt', pageSize: 10 },
+    const { data } = await axios.get('https://newsapi.org/v2/everything', {
+      params: {
+        q:        query,
+        language: 'zh',
+        sortBy:   'publishedAt',
+        pageSize: 10,
+      },
+      headers: { 'X-Api-Key': config.apiKeys.news },
+      timeout: 10000,
     })
+
+    console.log(`[News] 取得 ${data.articles?.length || 0} 篇文章，query: ${query}`)
     return data.articles || []
+
   } catch (err) {
-    console.error('NewsAPI error:', err.message)
+    console.error('[News] 錯誤:', err.response?.data || err.message)
     return []
   }
 }
 
 const topHeadlines = async (country = 'tw') => {
+  if (!config.apiKeys.news) return []
+
   try {
-    const { data } = await newsClient.get('/top-headlines', {
+    const { data } = await axios.get('https://newsapi.org/v2/top-headlines', {
       params: { country, pageSize: 10 },
+      headers: { 'X-Api-Key': config.apiKeys.news },
+      timeout: 10000,
     })
     return data.articles || []
   } catch (err) {
-    console.error('NewsAPI headlines error:', err.message)
+    console.error('[News] topHeadlines 錯誤:', err.response?.data || err.message)
     return []
   }
 }
